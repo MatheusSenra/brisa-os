@@ -249,16 +249,16 @@ scp ~/brisa-work/output/target/usr/bin/brisa-ui root@<ip-do-aparelho>:/usr/bin/
 
 ## 🗺 Roadmap
 
-- [x] Interface com sistemas, jogos, recentes e ajustes
-- [x] Wi-Fi, SSH e SFTP
-- [x] Governor da CPU por sistema, run-ahead e retomada automática
-- [x] Primeiro boot validado no RG35XX H
-- [ ] Usar o cartão inteiro no primeiro boot (hoje a partição de jogos tem 2 GB)
-- [ ] Teclado na tela para configurar o Wi-Fi
-- [ ] Suspender e retomar pelo botão POWER
-- [ ] Capas dos jogos e favoritos
-- [ ] Mais sistemas: N64, PSP e Dreamcast, com ajustes por jogo
-- [ ] Suporte a outros aparelhos H700 (RG35XX Plus, SP, 2024, RG40XX)
+O plano completo, com o estudo do muOS e do KNULLI, o comparativo de recursos e os diferenciais do Brisa, está em **[docs/ROADMAP.md](docs/ROADMAP.md)**.
+
+| Fase | Foco | Destaques |
+|---|---|---|
+| **0. Fundamentos** ✳️ | Base confiável | Cartão inteiro, volume, reparo automático do cartão, bateria crítica |
+| **1. Experiência essencial** | Uso diário | **Quick Resume**, ociosidade, Wi-Fi na tela, busca, favoritos, atualização sem regravar |
+| **2. Biblioteca bonita** | Visual | Capas, tempo de jogo, temas leves, ajustes por jogo |
+| **3. Mais sistemas** | Conteúdo | Arcade (FBNeo), Atari, WonderSwan, PC Engine, depois PSP, N64, Dreamcast |
+| **4. Rede e nuvem** | Conectividade | **Painel Brisa** no navegador, sincronização de saves, RetroAchievements |
+| **5. Hardware** | Alcance | HDMI, Bluetooth, outros aparelhos H700, kernel mainline |
 
 ## 🤝 Contribuindo
 
