@@ -25,7 +25,9 @@ brisa-ui: $(SRC) $(HDR)
 
 DEMO = build/demo
 ETC = ../buildroot/board/rg35xxh/rootfs-overlay/etc/brisa
-DEV_ENV = BRISA_ETC=$(ETC) BRISA_DATA=$(DEMO)/Brisa BRISA_ROMS=$(DEMO)/Roms BRISA_BIN=$(CURDIR)/pc-bin
+# make run ROMS=/caminho/das/roms para ver a interface com os seus jogos
+ROMS ?= $(DEMO)/Roms
+DEV_ENV = BRISA_ETC=$(ETC) BRISA_DATA=$(DEMO)/Brisa BRISA_ROMS=$(ROMS) BRISA_BIN=$(CURDIR)/pc-bin
 
 $(DEMO):
 	tools/mkdemo.sh $(DEMO)

@@ -4,7 +4,7 @@
 #   make vendor STOCK=<imagem>   extrai do firmware stock o que é reaproveitado
 #   make                         compila o sistema e gera a imagem para gravar
 #   make config-nogpu rootfs     compila sem Mali/RetroArch (não precisa do stock)
-#   make ui-run                  abre a interface no PC
+#   make ui-run [ROMS=<pasta>]   abre a interface no PC (com as suas ROMs, se quiser)
 #   make test                    testes que rodam sem o aparelho
 #   make check                   confere o rootfs compilado (GPU, bibliotecas, vendor)
 #   make clean-stock             apaga as cópias de trabalho do firmware stock
@@ -79,8 +79,10 @@ rebuild-ui:
 ui:
 	$(MAKE) -C ui
 
+# make ui-run ROMS='E:\minhas-roms' SCALE=2 (aceita caminho do Windows ou do Linux)
 ui-run:
-	$(MAKE) -C ui run
+	$(MAKE) -C ui run $(if $(ROMS),ROMS="$(shell wslpath -u '$(ROMS)' 2>/dev/null || realpath '$(ROMS)')") \
+		$(if $(SCALE),SCALE=$(SCALE))
 
 ui-test:
 	$(MAKE) -C ui test

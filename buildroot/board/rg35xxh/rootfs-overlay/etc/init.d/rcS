@@ -77,6 +77,16 @@ else
 	BRISA_ROMS=/data/Roms
 fi
 
+# Pasta de ROMs de um cartão: Roms/ se existir; senão a raiz, se ela já tiver
+# pastas de sistemas (coleções copiadas assim: GBA/, SNES/, PS/...); senão Roms/.
+roms_dir() {
+	[ -d "$1/Roms" ] && { echo "$1/Roms"; return; }
+	for dir in $(grep -v '^#' /etc/brisa/systems.conf | cut -d'|' -f3 | tr ',' ' '); do
+		[ -d "$1/$dir" ] && { echo "$1"; return; }
+	done
+	echo "$1/Roms"
+}
+
 # Segundo cartão (TF2): se existir, as ROMs ficam nele.
 for d in /sys/class/block/mmcblk*; do
 	n=${d##*/}
@@ -84,7 +94,7 @@ for d in /sys/class/block/mmcblk*; do
 	p2=$(data_part "$n")
 	[ -z "$p2" ] && [ -n "$(fs_type "/dev/$n")" ] && p2=$n
 	if [ -n "$p2" ] && mount_data "$p2" /mnt/sd2; then
-		BRISA_ROMS=/mnt/sd2/Roms
+		BRISA_ROMS=$(roms_dir /mnt/sd2)
 		break
 	fi
 done
