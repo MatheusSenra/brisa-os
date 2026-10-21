@@ -1,12 +1,20 @@
 #!/bin/sh
 # brisa-volume up|down|get: ajusta o volume e imprime a porcentagem.
-# O controle do mixer vem de AUDIO_CONTROL em hw.conf; sem ele, usa o
-# primeiro controle de volume que o ALSA listar.
+# Usa o controle AUDIO_CONTROL da placa AUDIO_CARD (common.sh / hw.conf).
 . /usr/lib/brisa/common.sh
-CTL=${AUDIO_CONTROL:-$(amixer scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | head -n1)}
-[ -n "$CTL" ] || exit 1
+
+info=$(amixer -c "$AUDIO_CARD" cget name="$AUDIO_CONTROL" 2>/dev/null) || exit 1
+cur=$(echo "$info" | sed -n 's/.*: values=\([0-9]*\).*/\1/p')
+max=$(echo "$info" | sed -n 's/.*max=\([0-9]*\).*/\1/p')
+[ -n "$cur" ] && [ -n "${max:-}" ] && [ "$max" -gt 0 ] || exit 1
+
+# ~20 passos do mínimo ao máximo
+step=$(( (max + 19) / 20 ))
 case "$1" in
-up) amixer -q sset "$CTL" 5%+ ;;
-down) amixer -q sset "$CTL" 5%- ;;
+up) cur=$((cur + step)) ;;
+down) cur=$((cur - step)) ;;
 esac
-amixer sget "$CTL" | sed -n 's/.*\[\([0-9]*\)%\].*/\1/p' | head -n1
+[ "$cur" -gt "$max" ] && cur=$max
+[ "$cur" -lt 0 ] && cur=0
+[ "$1" = get ] || amixer -q -c "$AUDIO_CARD" cset name="$AUDIO_CONTROL" "$cur"
+echo $((cur * 100 / max))

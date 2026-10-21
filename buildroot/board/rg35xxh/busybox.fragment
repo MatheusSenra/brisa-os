@@ -5,3 +5,5 @@ CONFIG_NTPD=y
 # sem isto o blkid não imprime o tipo e o Brisa cai em /data/Roms
 CONFIG_FEATURE_BLKID_TYPE=y
 CONFIG_FEATURE_MOUNT_LABEL=y
+# diagnóstico: limita o tempo de testes que podem travar (ex.: aplay)
+CONFIG_TIMEOUT=y

@@ -40,6 +40,9 @@
 #define MAX_RECENT 30
 #define REPEAT_DELAY 350
 #define REPEAT_RATE 70
+/* Segurar POWER desliga direito antes que o chip de energia corte à força
+ * (o que corrompe o cartão). Um toque rápido abre o menu de energia. */
+#define POWER_HOLD 2000
 #define MAX_SCRIPT 128
 
 typedef enum { SCR_SYSTEMS, SCR_GAMES, SCR_SETTINGS, SCR_ABOUT, SCR_INPUT, SCR_COUNT } screen_t;
@@ -84,6 +87,7 @@ static struct {
 
     int held, menu_down;
     uint64_t next_repeat;
+    uint64_t power_since; /* POWER apertado desde (0 = solto) */
 
     char *script[MAX_SCRIPT];
     int nscript, script_pos;
@@ -660,7 +664,7 @@ static void launch(const game_t *g)
     A.held = A.menu_down = 0;
 
     if (pid < 0 || (!killed && WIFEXITED(status) && WEXITSTATUS(status) != 0))
-        toast("Não foi possível abrir o jogo (veja /tmp/brisa-launch.log)");
+        toast("Não foi possível abrir o jogo (veja Brisa/logs no cartão)");
 
     build_vis();
     if (A.scr == SCR_GAMES && A.games_sys < 0)
@@ -878,6 +882,16 @@ static void on_event(const uev_t *ev)
     }
     if (ev->btn == IN_MENU)
         A.menu_down = ev->pressed;
+    if (ev->btn == IN_POWER) {
+        /* decide ao soltar: toque abre o menu; 2 s segurando desliga (ver main) */
+        if (ev->pressed) {
+            A.power_since = now_ms();
+        } else if (A.power_since) {
+            A.power_since = 0;
+            on_press(IN_POWER);
+        }
+        return;
+    }
     if (ev->pressed) {
         on_press(ev->btn);
         if (repeats(ev->btn)) {
@@ -992,11 +1006,21 @@ int main(void)
             break;
 
         uint64_t now = now_ms();
+        if (A.power_since && now - A.power_since >= POWER_HOLD) {
+            A.power_since = 0;
+            power("poweroff");
+            continue;
+        }
         int timeout = 1000;
         if (A.held)
             timeout = A.next_repeat > now ? (int)(A.next_repeat - now) : 0;
         else if (A.toast_until > now && A.toast_until - now < 1000)
             timeout = (int)(A.toast_until - now);
+        if (A.power_since) {
+            int left = (int)(A.power_since + POWER_HOLD - now);
+            if (left < timeout)
+                timeout = left;
+        }
 
         uev_t ev;
         if (plat_poll(&ev, timeout)) {

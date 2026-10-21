@@ -10,6 +10,10 @@ export BRISA_ETC BRISA_DATA BRISA_ROMS
 [ -f "$BRISA_ETC/hw.conf" ] && . "$BRISA_ETC/hw.conf"
 : "${WIFI_MODULES:=8821cs}"
 : "${WIFI_IFACE:=wlan0}"
+# Som do RG35XX H (placa 0, "audiocodec"): DAC -> mixers de saída -> LINEOUT -> amplificador.
+: "${AUDIO_CARD:=0}"
+: "${AUDIO_CONTROL:=lineout volume}"
+: "${AUDIO_ROUTE:=OutputL Mixer DACL Switch|OutputR Mixer DACR Switch|LINEOUT Switch|SPK Switch}"
 
 # brisa_setting <chave> <padrão>
 brisa_setting() {
@@ -26,6 +30,14 @@ brisa_gov_dynamic() {
 		esac
 	done
 	echo performance
+}
+
+# Liga o caminho do som até o alto-falante. Sem ele o driver da Allwinner não
+# inicia a reprodução e o RetroArch, que sincroniza pelo áudio, trava no 1º quadro.
+brisa_audio_route() {
+	echo "$AUDIO_ROUTE" | tr '|' '\n' | while IFS= read -r c; do
+		[ -n "$c" ] && amixer -q -c "$AUDIO_CARD" cset name="$c" on 2>/dev/null
+	done
 }
 
 brisa_set_governor() {

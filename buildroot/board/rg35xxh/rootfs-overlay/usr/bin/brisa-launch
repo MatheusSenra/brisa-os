@@ -3,7 +3,10 @@
 # Abre um jogo no RetroArch com os ajustes do sistema e o governor da CPU
 # escolhido em Ajustes > Desempenho nos jogos.
 . /usr/lib/brisa/common.sh
-exec > /tmp/brisa-launch.log 2>&1
+# log no cartão (Brisa/logs), para ler no PC depois; /tmp some ao desligar
+LOGDIR="$BRISA_DATA/logs"
+mkdir -p "$LOGDIR" 2>/dev/null || LOGDIR=/tmp
+exec > "$LOGDIR/launch.log" 2>&1
 
 SYS="$1"
 ROM="$2"
@@ -20,6 +23,10 @@ if [ ! -f "$CORE" ]; then
 fi
 
 brisa_retroarch_prepare
+# garantia: com o caminho do som desligado o RetroArch trava antes do 1º quadro
+brisa_audio_route
+# modo desenvolvedor: ajuste extra antes de cada jogo (ver rcS)
+[ -f "$BRISA_DATA/dev/launch.sh" ] && . "$BRISA_DATA/dev/launch.sh"
 
 APPEND=
 for f in "$BRISA_ETC/retroarch/input-stock.cfg" "$BRISA_ETC/retroarch/input.cfg" \
@@ -51,5 +58,14 @@ while kill -0 $RA 2>/dev/null; do
 done
 
 brisa_set_governor "$(brisa_gov_dynamic)"
+echo "retroarch saiu com código $rc"
+if [ "$rc" != 0 ]; then
+	# mensagens do kernel ajudam quando a falha é de GPU, áudio ou memória
+	echo "--- dmesg"
+	dmesg | tail -n 60
+	echo "--- dispositivos"
+	ls -l /dev/mali* /dev/fb* /dev/snd/ 2>&1
+	lsmod 2>/dev/null | head -n 20
+fi
 sync
 exit $rc

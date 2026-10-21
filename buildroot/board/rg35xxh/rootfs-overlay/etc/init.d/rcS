@@ -131,7 +131,19 @@ brisa_retroarch_prepare
 		udevadm trigger --action=add
 		udevadm settle -t 5
 	fi
-	alsactl restore -f "$BRISA_DATA/asound.state" 2>/dev/null
+	# volume salvo no último desligamento; na primeira vez, 24 de 31
+	alsactl restore -f "$BRISA_DATA/asound.state" 2>/dev/null ||
+		amixer -q -c "$AUDIO_CARD" cset name="$AUDIO_CONTROL" 24 2>/dev/null
+	brisa_audio_route
 	brisa_set_governor "$(brisa_gov_dynamic)"
 	/usr/bin/brisa-net apply
+
+	# Modo desenvolvedor: Brisa/dev/boot.sh no cartão roda como root a cada boot,
+	# com a saída em Brisa/logs. Serve para diagnosticar e testar correções sem
+	# regravar a imagem. Só existe se alguém criar o arquivo.
+	if [ -f "$BRISA_DATA/dev/boot.sh" ]; then
+		mkdir -p "$BRISA_DATA/logs"
+		sh "$BRISA_DATA/dev/boot.sh" > "$BRISA_DATA/logs/dev-boot.log" 2>&1
+		sync
+	fi
 ) > /tmp/boot.log 2>&1 &
