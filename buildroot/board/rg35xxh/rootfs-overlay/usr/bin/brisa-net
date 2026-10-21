@@ -1,0 +1,105 @@
+#!/bin/sh
+# brisa-net apply|stop|status
+# Liga ou desliga Wi-Fi e SSH/SFTP conforme Brisa/settings.conf.
+. /usr/lib/brisa/common.sh
+RUN=/run/brisa
+mkdir -p "$RUN"
+
+alive() {
+	[ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null
+}
+
+# Converte Brisa/wifi.conf (REDE=/SENHA=, pode repetir) para o wpa_supplicant.
+wifi_conf() {
+	src="$BRISA_DATA/wifi.conf"
+	[ -f "$src" ] || return 1
+	out="$RUN/wpa_supplicant.conf"
+	echo "ctrl_interface=$RUN/wpa" > "$out"
+	ssid=
+	prio=100
+	tr -d '\r' < "$src" | while IFS= read -r l; do
+		case "$l" in
+		REDE=*) ssid=${l#REDE=} ;;
+		SENHA=*)
+			pass=${l#SENHA=}
+			[ -n "$ssid" ] || continue
+			if [ -n "$pass" ]; then
+				# sem a linha "#psk=" com a senha em texto puro
+				wpa_passphrase "$ssid" "$pass" | grep -v '#psk=' |
+					awk -v p="$prio" '/^}/ { print "\tpriority=" p } { print }'
+			else
+				printf 'network={\n\tssid="%s"\n\tkey_mgmt=NONE\n\tpriority=%d\n}\n' "$ssid" "$prio"
+			fi
+			prio=$((prio - 1))
+			ssid=
+			;;
+		esac
+	done >> "$out"
+	grep -q 'network=' "$out"
+}
+
+wifi_start() {
+	alive "$RUN/wpa.pid" && return 0
+	if ! wifi_conf; then
+		echo "brisa-net: sem redes em $BRISA_DATA/wifi.conf"
+		return 1
+	fi
+	for m in $WIFI_MODULES; do
+		modprobe "$m" 2>/dev/null
+	done
+	i=0
+	while [ ! -d "/sys/class/net/$WIFI_IFACE" ] && [ $i -lt 50 ]; do
+		usleep 100000
+		i=$((i + 1))
+	done
+	ip link set "$WIFI_IFACE" up || return 1
+	wpa_supplicant -B -i "$WIFI_IFACE" -c "$RUN/wpa_supplicant.conf" -P "$RUN/wpa.pid"
+	udhcpc -b -S -i "$WIFI_IFACE" -p "$RUN/udhcpc.pid" -x hostname:"$(hostname)"
+	# acerta o relógio quando a rede subir
+	( sleep 10; ntpd -n -q -p pool.ntp.org && hwclock -w ) > /dev/null 2>&1 &
+}
+
+wifi_stop() {
+	for p in udhcpc wpa; do
+		alive "$RUN/$p.pid" && kill "$(cat "$RUN/$p.pid")"
+		rm -f "$RUN/$p.pid"
+	done
+	if [ -d "/sys/class/net/$WIFI_IFACE" ]; then
+		ip link set "$WIFI_IFACE" down
+		# descarrega o driver para economizar bateria
+		for m in $WIFI_MODULES; do
+			rmmod "$m" 2>/dev/null
+		done
+	fi
+}
+
+ssh_start() {
+	alive "$RUN/dropbear.pid" && return 0
+	mkdir -p /etc/dropbear
+	dropbear -R -P "$RUN/dropbear.pid"
+}
+
+ssh_stop() {
+	alive "$RUN/dropbear.pid" && kill "$(cat "$RUN/dropbear.pid")"
+	rm -f "$RUN/dropbear.pid"
+}
+
+case "$1" in
+apply)
+	if [ "$(brisa_setting wifi 0)" = 1 ]; then wifi_start; else wifi_stop; fi
+	if [ "$(brisa_setting ssh 0)" = 1 ]; then ssh_start; else ssh_stop; fi
+	;;
+stop)
+	ssh_stop
+	wifi_stop
+	;;
+status)
+	alive "$RUN/wpa.pid" && echo "wifi: ligado" || echo "wifi: desligado"
+	alive "$RUN/dropbear.pid" && echo "ssh: ligado" || echo "ssh: desligado"
+	ip -4 addr show "$WIFI_IFACE" 2>/dev/null | sed -n 's/.*inet \([0-9.]*\).*/ip: \1/p'
+	;;
+*)
+	echo "uso: brisa-net apply|stop|status" >&2
+	exit 1
+	;;
+esac

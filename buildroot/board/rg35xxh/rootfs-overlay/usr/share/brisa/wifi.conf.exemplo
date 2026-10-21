@@ -1,0 +1,7 @@
+# Wi-Fi do Brisa OS
+# Copie este arquivo como "wifi.conf" (na mesma pasta Brisa) e preencha.
+# Pode repetir REDE/SENHA para várias redes; a primeira tem preferência.
+# Para rede aberta, deixe SENHA vazia.
+
+REDE=Nome da minha rede
+SENHA=minha senha

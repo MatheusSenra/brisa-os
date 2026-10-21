@@ -1,0 +1,5 @@
+config BR2_PACKAGE_LIBRETRO_PCSX_REARMED
+	bool "libretro-pcsx-rearmed"
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  Core PCSX ReARMed: PlayStation, com dynarec ARM64.

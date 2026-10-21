@@ -1,0 +1,5 @@
+config BR2_PACKAGE_LIBRETRO_GAMBATTE
+	bool "libretro-gambatte"
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  Core Gambatte: Game Boy e Game Boy Color.

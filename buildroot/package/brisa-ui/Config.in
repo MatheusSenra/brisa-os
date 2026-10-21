@@ -1,0 +1,7 @@
+config BR2_PACKAGE_BRISA_UI
+	bool "brisa-ui"
+	select BR2_PACKAGE_DEJAVU
+	select BR2_PACKAGE_DEJAVU_SANS
+	help
+	  Interface do Brisa OS. Desenha direto no framebuffer e lê os
+	  controles pelo evdev, sem depender da GPU.

@@ -1,0 +1,14 @@
+config BR2_PACKAGE_BRISA_VENDOR
+	bool "brisa-vendor"
+	help
+	  Instala o que foi extraído do firmware stock da Anbernic
+	  (scripts/extract-vendor.sh): módulos do kernel 4.9, firmware
+	  do Wi-Fi, perfis de controle do RetroArch e hw.conf.
+
+if BR2_PACKAGE_BRISA_VENDOR
+
+config BR2_PACKAGE_BRISA_VENDOR_DIR
+	string "diretório vendor"
+	default "$(BR2_EXTERNAL_BRISA_PATH)/../vendor"
+
+endif

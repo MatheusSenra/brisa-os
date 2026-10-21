@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#151a26"/>
+      <stop offset="1" stop-color="#0b0e15"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4fd1c5" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#4fd1c5" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#4fd1c5" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+
+  <!-- rajadas de vento -->
+  <g fill="none" stroke="url(#wave)" stroke-linecap="round">
+    <path d="M80 250 C 320 190, 520 310, 760 250 S 1120 200, 1220 240" stroke-width="3" opacity="0.55"/>
+    <path d="M40 285 C 300 235, 560 335, 820 280 S 1140 245, 1240 275" stroke-width="2" opacity="0.35"/>
+    <path d="M140 215 C 360 165, 600 265, 840 215 S 1100 175, 1180 200" stroke-width="2" opacity="0.25"/>
+  </g>
+
+  <!-- marca -->
+  <g transform="translate(640 150)" text-anchor="middle"
+     font-family="Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <!-- o ponto fica no próprio texto para acompanhar qualquer fonte -->
+    <text x="0" y="0" font-size="84" font-weight="700" fill="#e9edf3" letter-spacing="-2"><tspan fill="#4fd1c5" font-size="44" dy="-14">●</tspan><tspan dy="14" dx="18">Brisa OS</tspan></text>
+    <text x="0" y="58" font-size="26" fill="#8d97ab">Firmware leve para o Anbernic RG35XX H</text>
+  </g>
+</svg>

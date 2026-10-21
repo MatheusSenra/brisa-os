@@ -1,0 +1,19 @@
+config BR2_PACKAGE_BRISA_MALI
+	bool "brisa-mali"
+	depends on BR2_PACKAGE_BRISA_VENDOR
+	select BR2_PACKAGE_HAS_LIBEGL
+	select BR2_PACKAGE_HAS_LIBGLES
+	select BR2_PACKAGE_MESA3D_HEADERS
+	help
+	  Driver de espaço de usuário da Mali-G31 (libmali) tirado do
+	  firmware stock. Fornece EGL e OpenGL ES para o RetroArch.
+
+if BR2_PACKAGE_BRISA_MALI
+
+config BR2_PACKAGE_PROVIDES_LIBEGL
+	default "brisa-mali"
+
+config BR2_PACKAGE_PROVIDES_LIBGLES
+	default "brisa-mali"
+
+endif

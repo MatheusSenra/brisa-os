@@ -1,0 +1,8 @@
+#!/bin/sh
+# brisa-power poweroff|reboot
+sync
+case "$1" in
+poweroff) exec poweroff ;;
+reboot) exec reboot ;;
+*) echo "uso: brisa-power poweroff|reboot" >&2; exit 1 ;;
+esac

@@ -1,0 +1,17 @@
+menu "Brisa OS"
+
+comment "Sistema"
+source "$BR2_EXTERNAL_BRISA_PATH/package/brisa-ui/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/brisa-vendor/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/brisa-mali/Config.in"
+
+comment "Emulação"
+source "$BR2_EXTERNAL_BRISA_PATH/package/brisa-retroarch/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-fceumm/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-gambatte/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-mgba/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-pcsx-rearmed/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-picodrive/Config.in"
+source "$BR2_EXTERNAL_BRISA_PATH/package/libretro-snes9x/Config.in"
+
+endmenu

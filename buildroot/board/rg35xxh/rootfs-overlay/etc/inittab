@@ -1,0 +1,7 @@
+# Brisa OS
+::sysinit:/etc/init.d/rcS
+::respawn:/usr/bin/brisa-session
+# console serial (UART) para depuração
+ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100
+::ctrlaltdel:/sbin/reboot
+::shutdown:/etc/init.d/rcK

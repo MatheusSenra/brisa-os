@@ -1,0 +1,3 @@
+# Applets extras usados pelos scripts do Brisa
+# acerta o relógio quando o Wi-Fi conecta (brisa-net)
+CONFIG_NTPD=y

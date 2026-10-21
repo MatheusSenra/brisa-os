@@ -1,0 +1,4 @@
+# Desliga o que depende do blob Mali do firmware stock.
+# Serve para validar o resto do sistema antes de ter o vendor extraído.
+# BR2_PACKAGE_BRISA_MALI is not set
+# BR2_PACKAGE_BRISA_RETROARCH is not set

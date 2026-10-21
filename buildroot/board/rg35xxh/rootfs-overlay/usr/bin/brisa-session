@@ -1,0 +1,5 @@
+#!/bin/sh
+# Mantida pelo init (respawn): se a interface cair, ela volta sozinha.
+. /usr/lib/brisa/common.sh
+cd /
+exec /usr/bin/brisa-ui > /tmp/brisa-ui.log 2>&1

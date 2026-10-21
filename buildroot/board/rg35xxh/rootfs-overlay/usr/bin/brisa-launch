@@ -1,0 +1,55 @@
+#!/bin/sh
+# brisa-launch <sistema> <rom>
+# Abre um jogo no RetroArch com os ajustes do sistema e o governor da CPU
+# escolhido em Ajustes > Desempenho nos jogos.
+. /usr/lib/brisa/common.sh
+exec > /tmp/brisa-launch.log 2>&1
+
+SYS="$1"
+ROM="$2"
+line=$(grep "^$SYS|" "$BRISA_ETC/systems.conf" | head -n1)
+if [ -z "$line" ]; then
+	echo "sistema desconhecido: $SYS"
+	exit 2
+fi
+CORE=/usr/lib/libretro/$(echo "$line" | cut -d'|' -f5)
+HEAVY=$(echo "$line" | cut -d'|' -f6)
+if [ ! -f "$CORE" ]; then
+	echo "core não instalado: $CORE"
+	exit 3
+fi
+
+brisa_retroarch_prepare
+
+APPEND=
+for f in "$BRISA_ETC/retroarch/input-stock.cfg" "$BRISA_ETC/retroarch/input.cfg" \
+	"$BRISA_ETC/retroarch/systems/$SYS.cfg"; do
+	[ -f "$f" ] && APPEND="$APPEND|$f"
+done
+[ "$(brisa_setting resume 1)" = 1 ] && APPEND="$APPEND|$BRISA_ETC/retroarch/resume.cfg"
+APPEND=${APPEND#|}
+
+case "$(brisa_setting perf balanced)" in
+performance) GOV=performance ;;
+powersave) GOV=$(brisa_gov_dynamic) ;;
+*) [ "$HEAVY" = 1 ] && GOV=performance || GOV=$(brisa_gov_dynamic) ;;
+esac
+brisa_set_governor "$GOV"
+echo "sistema=$SYS core=$CORE governor=$GOV rom=$ROM"
+
+# O RetroArch roda em segundo plano para que o SIGTERM do botão POWER
+# chegue a ele (que salva o jogo) e o governor volte ao normal depois.
+retroarch -L "$CORE" --config "$BRISA_DATA/retroarch/retroarch.cfg" \
+	${APPEND:+--appendconfig "$APPEND"} "$ROM" &
+RA=$!
+trap 'kill -TERM $RA 2>/dev/null' TERM INT
+wait $RA
+rc=$?
+while kill -0 $RA 2>/dev/null; do
+	wait $RA
+	rc=$?
+done
+
+brisa_set_governor "$(brisa_gov_dynamic)"
+sync
+exit $rc

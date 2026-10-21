@@ -1,0 +1,12 @@
+#!/bin/sh
+# brisa-volume up|down|get: ajusta o volume e imprime a porcentagem.
+# O controle do mixer vem de AUDIO_CONTROL em hw.conf; sem ele, usa o
+# primeiro controle de volume que o ALSA listar.
+. /usr/lib/brisa/common.sh
+CTL=${AUDIO_CONTROL:-$(amixer scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | head -n1)}
+[ -n "$CTL" ] || exit 1
+case "$1" in
+up) amixer -q sset "$CTL" 5%+ ;;
+down) amixer -q sset "$CTL" 5%- ;;
+esac
+amixer sget "$CTL" | sed -n 's/.*\[\([0-9]*\)%\].*/\1/p' | head -n1

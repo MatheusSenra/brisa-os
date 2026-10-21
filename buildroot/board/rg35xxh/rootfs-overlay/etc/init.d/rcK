@@ -1,0 +1,19 @@
+#!/bin/sh
+# Brisa OS: desligamento. Dá tempo ao RetroArch de salvar antes de desmontar.
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+. /usr/lib/brisa/common.sh
+
+killall -TERM retroarch 2>/dev/null
+i=0
+while pidof retroarch >/dev/null && [ $i -lt 30 ]; do
+	usleep 100000
+	i=$((i + 1))
+done
+killall -TERM brisa-ui 2>/dev/null
+
+alsactl store -f "$BRISA_DATA/asound.state" 2>/dev/null
+/usr/bin/brisa-net stop
+sync
+umount /mnt/sd2 2>/dev/null
+umount /mnt/sd1 2>/dev/null
+mount -o remount,ro / 2>/dev/null

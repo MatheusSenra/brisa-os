@@ -1,0 +1,4 @@
+#!/bin/sh
+# Simula a abertura de um jogo no PC.
+echo "brisa-launch: $1 $2" >&2
+sleep 1

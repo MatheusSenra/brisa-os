@@ -1,0 +1,14 @@
+config BR2_PACKAGE_BRISA_RETROARCH
+	bool "brisa-retroarch"
+	depends on BR2_PACKAGE_HAS_LIBEGL
+	depends on BR2_PACKAGE_HAS_LIBGLES
+	depends on BR2_PACKAGE_HAS_UDEV
+	depends on BR2_INSTALL_LIBSTDCPP
+	select BR2_PACKAGE_ALSA_LIB
+	select BR2_PACKAGE_ZLIB
+	help
+	  RetroArch compilado para a Mali-G31 em modo fbdev
+	  (EGL direto no framebuffer, sem X11/Wayland/KMS).
+
+comment "brisa-retroarch precisa do brisa-mali e do eudev"
+	depends on !BR2_PACKAGE_HAS_LIBEGL || !BR2_PACKAGE_HAS_UDEV
