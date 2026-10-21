@@ -33,7 +33,10 @@ define BRISA_RETROARCH_BUILD_CMDS
 		CC="$(TARGET_CC)" CXX="$(TARGET_CXX)" LD="$(TARGET_CXX)"
 endef
 
+# Sem o contexto fbdev_mali o RetroArch abre sem vídeo no aparelho: falha no build.
 define BRISA_RETROARCH_INSTALL_TARGET_CMDS
+	grep -q fbdev_mali $(@D)/retroarch || \
+		{ echo "brisa-retroarch: compilado sem o contexto fbdev_mali"; exit 1; }
 	$(INSTALL) -D -m 0755 $(@D)/retroarch $(TARGET_DIR)/usr/bin/retroarch
 endef
 

@@ -63,13 +63,15 @@ fakeroot -- sh -c '
 log "copiando a imagem stock"
 cp --sparse=always "$STOCK_IMG" "$OUT"
 log "gravando o rootfs na partição $ROOTFS_PART"
-dd if="$TMP/rootfs.ext4" of="$OUT" bs=512 seek="$ROOTFS_START" conv=notrunc,sparse status=none
+dd if="$TMP/rootfs.ext4" of="$OUT" bs=4M oflag=seek_bytes seek=$((ROOTFS_START * 512)) \
+	conv=notrunc,sparse status=none
 
 if [ "$WIPE" = 1 ]; then
 	[ -n "${STORAGE_PART:-}" ] || die "a imagem stock não tem partição de dados"
 	log "formatando a partição de dados $STORAGE_PART (FAT32, BRISA)"
 	mkfs.vfat -F 32 -n BRISA -C "$TMP/storage.img" $((STORAGE_SECTORS / 2)) >/dev/null
-	dd if="$TMP/storage.img" of="$OUT" bs=512 seek="$STORAGE_START" conv=notrunc,sparse status=none
+	dd if="$TMP/storage.img" of="$OUT" bs=4M oflag=seek_bytes seek=$((STORAGE_START * 512)) \
+		conv=notrunc,sparse status=none
 fi
 
 if [ "$XZ" = 1 ]; then

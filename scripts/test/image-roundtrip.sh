@@ -17,8 +17,17 @@ mkdir -p "$R/lib/modules/4.9.170/kernel/drivers/net/wireless" "$R/etc/modules-lo
 	"$R/proc" "$R/sbin"
 : > "$R/lib/modules/4.9.170/kernel/drivers/net/wireless/8821cs.ko"
 : > "$R/lib/modules/4.9.170/modules.dep"
-printf '# módulos\nmali_kbase\n8821cs\n' > "$R/etc/modules"
-printf 'sunxi_gpadc\n' > "$R/etc/modules-load.d/joy.conf"
+mkdir -p "$R/lib/modules/4.9.170/kernel/drivers/input" "$R/usr/lib/modules"
+cp /lib/x86_64-linux-gnu/libz.so.1 "$R/lib/modules/4.9.170/kernel/drivers/input/gpio_keys_gpadc.ko"
+# como no stock real: módulo da GPU fora da pasta do kernel, carregado por caminho
+cp /lib/x86_64-linux-gnu/libz.so.1 "$R/usr/lib/modules/mali_kbase.ko"
+# .ko que não é módulo (o stock real tem o tutorial do vim em coreano)
+mkdir -p "$R/usr/share/vim/vim82/tutor"
+echo "texto" > "$R/usr/share/vim/vim82/tutor/tutor.ko"
+printf '# módulos\nrtl_btlpm\n' > "$R/etc/modules"
+printf 'gpio_keys_gpadc\n' > "$R/etc/modules-load.d/joy.conf"
+printf '#!/bin/sh\ninsmod /lib/modules/4.9.170/kernel/drivers/net/wireless/rtl8821cs/8821cs.ko\ninsmod /lib/modules/mali_kbase.ko\nfor m in $list; do modprobe $module; done\n' \
+	> "$R/etc/rc.local"
 cp /lib/x86_64-linux-gnu/libz.so.1 "$R/usr/lib/aarch64-linux-gnu/libmali.so.0"
 ln -s libmali.so.0 "$R/usr/lib/aarch64-linux-gnu/libmali.so"
 printf 'fw' > "$R/lib/firmware/rtl8821cs_fw.bin"
@@ -63,7 +72,10 @@ BRISA_WORK="$T/work" "$TOP/scripts/extract-vendor.sh" "$STOCK.gz" "$V" > "$T/ext
 [ -f "$V/autoconfig/H700.cfg" ] || fail "autoconfig"
 grep -q 'input_exit_emulator_btn' "$V/retroarch/input-stock.cfg" || fail "input-stock.cfg"
 [ "$WIFI_MODULES" = "8821cs " ] || fail "driver Wi-Fi (veio '$WIFI_MODULES')"
-case "$MODULES_EARLY" in *mali_kbase*sunxi_gpadc*) ;; *) fail "módulos de boot (veio '$MODULES_EARLY')" ;; esac
+[ "$MODULES_EARLY" = "gpio_keys_gpadc " ] || fail "módulos de boot (veio '$MODULES_EARLY')"
+[ "$MODULES_LATE" = "mali_kbase " ] || fail "módulos em segundo plano (veio '$MODULES_LATE')"
+[ -f "$V/modules/4.9.170/extra/mali_kbase.ko" ] || fail "mali_kbase.ko avulso em extra/"
+grep -q 'extra/mali_kbase.ko' "$V/modules/4.9.170/modules.dep" || fail "modules.dep com o módulo avulso"
 grep -q 'root=/dev/mmcblk0p3' "$V/info/report.txt" || fail "cmdline no relatório"
 ok "extract-vendor.sh encontrou rootfs, módulos, Mali, firmware, controles e cmdline"
 

@@ -23,7 +23,7 @@ SRC=$(realpath "$1")
 TOP=$(cd "$(dirname "$0")/.." && pwd)
 VENDOR=$(realpath -m "${2:-$TOP/vendor}")
 WORK=${BRISA_WORK:-$HOME/brisa-work}/stock
-for t in sfdisk blkid debugfs readelf strings; do
+for t in sfdisk blkid debugfs readelf strings depmod file; do
 	command -v "$t" >/dev/null || die "falta '$t' (rode 'make deps')"
 done
 
@@ -72,8 +72,9 @@ done
 
 part_file() { # <índice> -> extrai a partição para um arquivo
 	local f="$WORK/p${P_NUM[$1]}.img"
-	[ -f "$f" ] || dd if="$IMG" of="$f" bs=512 skip="${P_START[$1]}" count="${P_SIZE[$1]}" \
-		conv=sparse status=none
+	# blocos grandes: no WSL, ler /mnt/c de 512 em 512 bytes leva quase uma hora
+	[ -f "$f" ] || dd if="$IMG" of="$f" bs=4M iflag=skip_bytes,count_bytes \
+		skip=$((P_START[$1] * 512)) count=$((P_SIZE[$1] * 512)) conv=sparse status=none
 	echo "$f"
 }
 
@@ -94,26 +95,59 @@ eval "$(blkid -p -o export "$ROOT_IMG" | grep -E '^(UUID|LABEL|TYPE)=' | sed 's/
 rep ""
 rep "Rootfs: p${P_NUM[$ROOT]} (${ROOTFS_TYPE:-?}, rótulo '${ROOTFS_LABEL:-}', UUID ${ROOTFS_UUID:-?})"
 
-log "copiando o rootfs stock (só leitura, via debugfs)"
+# Copia o conteúdo de um ext4 (só leitura, via debugfs) para um diretório.
+dump_fs() { # <imagem> <destino>
+	debugfs -R 'ls -p /' "$1" 2>/dev/null | awk -F/ '$3 ~ /^04/ { print $6 }' |
+		{ grep -vxE '\.|\.\.|proc|sys|dev|run|tmp|lost\+found' || true; } |
+		while read -r d; do
+			debugfs -R "rdump /$d $2" "$1" > /dev/null 2>> "$WORK/rdump.log" || true
+		done
+}
+
+log "copiando o rootfs stock"
 RFS="$WORK/rootfs"
 rm -rf "$RFS"
 mkdir -p "$RFS"
-debugfs -R 'ls -p /' "$ROOT_IMG" 2>/dev/null | awk -F/ '$3 ~ /^04/ { print $6 }' |
-	grep -vxE '\.|\.\.|proc|sys|dev|run|tmp|lost\+found' |
-	while read -r d; do
-		debugfs -R "rdump /$d $RFS" "$ROOT_IMG" > /dev/null 2>> "$WORK/rdump.log" || true
-	done
+dump_fs "$ROOT_IMG" "$RFS"
+
+# Outras partições ext (ex.: "appfs", que o stock monta em /mnt/vendor) também
+# guardam bibliotecas e o RetroArch. Ficam em $RFS/.part-<nome> para entrar nas buscas.
+for i in "${!P_NUM[@]}"; do
+	[ "$i" = "$ROOT" ] && continue
+	case "${P_TYPE[$i]}" in ext2|ext3|ext4) ;; *) continue ;; esac
+	log "copiando a partição ${P_NAME[$i]}"
+	mkdir -p "$RFS/.part-${P_NAME[$i]}"
+	dump_fs "$(part_file "$i")" "$RFS/.part-${P_NAME[$i]}"
+	rep "Partição extra: p${P_NUM[$i]} (${P_NAME[$i]}) incluída na busca"
+done
 
 # ---------- 4. módulos do kernel ----------
 MODDIR=
 for d in "$RFS/lib/modules" "$RFS/usr/lib/modules"; do
 	[ -d "$d" ] && MODDIR=$d && break
 done
-KVER=$(ls "$MODDIR" | head -n1)
+KVER=$(find "$MODDIR" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' -printf '%f\n' | sort | head -n1)
 mkdir -p "$VENDOR/modules"
 cp -a "$MODDIR/$KVER" "$VENDOR/modules/"
+
+# O stock carrega alguns módulos por caminho (ex.: /usr/lib/modules/mali_kbase.ko,
+# fora da pasta do kernel). Eles vão para extra/ e o depmod refaz o modules.dep,
+# para que o modprobe do Brisa os encontre pelo nome.
+mkdir -p "$VENDOR/modules/$KVER/extra"
+find "$RFS" -name '*.ko' ! -path "*/modules/$KVER/*" 2>/dev/null | while read -r f; do
+	# há .ko que não são módulos (ex.: o tutorial do vim em coreano)
+	if file -b "$f" | grep -q '^ELF'; then
+		cp "$f" "$VENDOR/modules/$KVER/extra/"
+	fi
+done
+DEPTMP=$(mktemp -d)
+mkdir -p "$DEPTMP/lib/modules"
+ln -s "$VENDOR/modules/$KVER" "$DEPTMP/lib/modules/$KVER"
+depmod -b "$DEPTMP" "$KVER" 2>> "$WORK/depmod.log" || echo "aviso: depmod falhou (veja $WORK/depmod.log)" >&2
+rm -rf "$DEPTMP"
 NKO=$(find "$VENDOR/modules" -name '*.ko' | wc -l)
-rep "Kernel: $KVER ($NKO módulos)"
+EXTRA=$(cd "$VENDOR/modules/$KVER/extra" && ls | tr '\n' ' ')
+rep "Kernel: $KVER ($NKO módulos; avulsos: ${EXTRA:-nenhum})"
 
 # ---------- 5. firmware ----------
 for d in "$RFS/lib/firmware" "$RFS/usr/lib/firmware" "$RFS/vendor/etc/firmware"; do
@@ -134,9 +168,11 @@ if ls "$VENDOR"/mali/* >/dev/null 2>&1; then
 	needed=$(readelf -d "$blob" 2>/dev/null | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p' | tr '\n' ' ')
 	rep "  depende de: $needed"
 	syms=$(readelf --dyn-syms -W "$blob" 2>/dev/null)
-	if grep -q ' wl_' <<<"$syms"; then rep "  variante: Wayland (o RetroArch precisaria de outro contexto)"
+	# sem -q: com pipefail, o grep -q sairia cedo e o SIGPIPE do strings viraria "falso"
+	if strings "$blob" | grep 'winsys_fbdev' > /dev/null; then rep "  variante: fbdev (confirmada; combina com o contexto fbdev_mali do RetroArch)"
+	elif grep -q ' wl_' <<<"$syms"; then rep "  variante: Wayland (o RetroArch precisaria de outro contexto)"
 	elif grep -q ' gbm_' <<<"$syms"; then rep "  variante: GBM/DRM (o RetroArch precisaria de --enable-kms)"
-	else rep "  variante: provavelmente fbdev (combina com o RetroArch mali-fbdev)"; fi
+	else rep "  variante: provavelmente fbdev (combina com o contexto fbdev_mali do RetroArch)"; fi
 else
 	rep "Mali: NENHUMA libmali encontrada. Bibliotecas EGL/GLES presentes:"
 	find "$RFS" -name 'libEGL*' -o -name 'libGLES*' 2>/dev/null | sed "s|$RFS||; s|^|  |" | tee -a "$REPORT"
@@ -166,18 +202,27 @@ fi
 	grep -hvE '^\s*(#|$)' "$RFS/etc/modules" "$RFS"/etc/modules-load.d/*.conf 2>/dev/null || true
 	# scripts de boot do stock que chamam insmod/modprobe
 	grep -rhoE '(insmod|modprobe)[[:space:]]+[^[:space:];|&]+' \
-		"$RFS/etc/init.d" "$RFS/etc/rc.local" "$RFS/usr/local/bin" "$RFS/etc/systemd" 2>/dev/null |
+		"$RFS/etc/init.d" "$RFS/etc/rc.local" "$RFS/usr/local/bin" "$RFS/etc/systemd" \
+		"$RFS"/.part-* 2>/dev/null |
 		awk '{ print $2 }' || true
 } | sed 's|.*/||; s|\.ko$||' | awk '!seen[$0]++' > "$VENDOR/info/modules-stock.txt"
 
-WIFI_RE='^(8821cs|8723ds|8723bs|8189fs|8189es|88x2cs|8822cs|8852bs|aic8800_fdrv|bcmdhd|xr829|ssv6x5x|rtl8.*)$'
-EARLY=$({ grep -vE "$WIFI_RE|^(aic8800_bsp|bt.*|hci.*|rfcomm|bluetooth)$" "$VENDOR/info/modules-stock.txt" || true; } | tr '\n' ' ')
-WIFI=$({ grep -E "$WIFI_RE" "$VENDOR/info/modules-stock.txt" || true; } | tr '\n' ' ')
+# Só nomes que existem como .ko (descarta "$module" e afins vindos dos scripts).
+find "$VENDOR/modules" -name '*.ko' | sed 's|.*/||; s|\.ko$||' | sort -u > "$VENDOR/info/modules-available.txt"
+LOADED=$({ grep -Fxf "$VENDOR/info/modules-available.txt" "$VENDOR/info/modules-stock.txt" || true; })
+
+WIFI_RE='^(8821cs|8723ds|8723bs|8189fs|8189es|88x2cs|8822cs|8852bs|aic8800_fdrv|bcmdhd|xr829|ssv6x5x|rtl8[0-9].*)$'
+# GPU e Bluetooth não são necessários para mostrar a interface: sobem em segundo plano.
+LATE_RE='^(mali_kbase|.*btlpm|bt.*|hci.*|rfcomm|bluetooth)$'
+WIFI=$({ grep -E "$WIFI_RE" <<<"$LOADED" || true; } | tr '\n' ' ')
+LATE=$({ grep -E "$LATE_RE" <<<"$LOADED" || true; } | tr '\n' ' ')
+EARLY=$({ grep -vE "$WIFI_RE|$LATE_RE" <<<"$LOADED" || true; } | grep -v '^$' | tr '\n' ' ' || true)
 if [ -z "$WIFI" ]; then
-	WIFI=$(find "$VENDOR/modules" -name '*.ko' | sed 's|.*/||; s|\.ko$||' | grep -E "$WIFI_RE" | head -n1 || true)
+	WIFI=$({ grep -E "$WIFI_RE" "$VENDOR/info/modules-available.txt" || true; } | head -n1)
 fi
 rep ""
-rep "Módulos carregados pelo stock: ${EARLY:-nenhum}"
+rep "Módulos no boot (antes da interface): ${EARLY:-nenhum}"
+rep "Módulos em segundo plano: ${LATE:-nenhum}"
 rep "Driver Wi-Fi: ${WIFI:-não identificado}"
 
 # ---------- 9. linha de comando do kernel ----------
@@ -202,7 +247,7 @@ cat > "$VENDOR/hw.conf" <<EOF
 # Gerado por extract-vendor.sh a partir de $(basename "$SRC")
 KVER="$KVER"
 MODULES_EARLY="$EARLY"
-MODULES_LATE=""
+MODULES_LATE="$LATE"
 WIFI_MODULES="$WIFI"
 EOF
 
