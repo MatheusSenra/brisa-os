@@ -42,20 +42,21 @@
 
 O Brisa está em **alpha**. Já funciona e foi testado:
 
-- ✅ Build completo do sistema (toolchain, rootfs, interface e os 6 cores)
+- ✅ Build completo do sistema: interface, RetroArch 1.22 com GPU Mali (fbdev) e os 6 cores
+- ✅ Extração do firmware stock **V1.2.4** da Anbernic: kernel 4.9.170, driver da GPU, Wi-Fi 8821cs e 391 perfis de controle
+- ✅ Imagem final gerada e conferida: só o rootfs muda; bootloader, kernel e partições ficam idênticos aos do stock
 - ✅ Interface no PC, com testes automáticos que geram capturas de tela
-- ✅ Extração do firmware stock e montagem da imagem, testadas de ponta a ponta
 
 Falta validar no aparelho:
 
-- ⏳ RetroArch com o blob Mali da Anbernic (precisa da imagem stock para compilar)
 - ⏳ Primeiro boot no RG35XX H real
 
 ## 🚀 Começando
 
 ### Requisitos
 
-- Linux ou **WSL2** (Ubuntu 22.04 ou mais novo), com ~15 GB livres
+- Linux ou **WSL2** (Ubuntu 22.04 ou mais novo), com ~40 GB livres durante o primeiro build
+  (depois do `make clean-stock`, ficam ~10 GB)
 - A **imagem do firmware stock** do RG35XX H (site da Anbernic, ou uma cópia do seu cartão original)
 - Um cartão microSD
 
@@ -83,11 +84,13 @@ cat vendor/info/report.txt
 make
 ```
 
-O resultado fica em `~/brisa-work/brisa-rg35xxh.img` (e `.img.xz`).
+Antes de montar a imagem, o `make` roda o `make check`: confere se o RetroArch tem o contexto de vídeo da Mali, se toda biblioteca que os binários pedem está no sistema e se os módulos do stock estão no lugar.
+
+O resultado fica em **`out/brisa-rg35xxh.img.xz`** (~2,5 GB).
 
 ### Gravar
 
-Grave a imagem no cartão com o [balenaEtcher](https://etcher.balena.io/) ou o [Rufus](https://rufus.ie/), coloque no slot **TF1** e ligue.
+Grave o `.img.xz` direto no cartão (não precisa descompactar) com o [balenaEtcher](https://etcher.balena.io/) ou o [Rufus](https://rufus.ie/), coloque no slot **TF1** e ligue.
 
 > [!TIP]
 > Use `make IMAGE_OPTS="--xz --wipe-storage"` para também formatar a partição de dados do cartão como FAT32.
@@ -202,6 +205,19 @@ make test
 ```
 
 O comando roda a interface sem janela, seguindo um roteiro que salva capturas em `ui/build/shots/`. Depois executa a extração e a montagem de imagem com um firmware stock falso.
+
+### Espaço em disco
+
+O build fica fora do projeto, em `~/brisa-work` (no WSL). Para liberar espaço:
+
+| Comando | Apaga | Depois |
+|---|---|---|
+| `make clean-stock` | cópias de trabalho do firmware stock (~14 GB) | nada a refazer: o que importa já está em `vendor/` |
+| `make clean` | o build do Buildroot (~9 GB) | o próximo `make` recompila tudo (~1 h) |
+| `make distclean` | os dois acima e a imagem | idem |
+
+> [!NOTE]
+> No WSL, apagar arquivos não devolve espaço ao Windows sozinho. Rode `wsl --manage Ubuntu --set-sparse true` uma vez e, depois de limpar, `wsl -u root fstrim -v /` seguido de `wsl --shutdown`.
 
 ### Sem o firmware stock
 

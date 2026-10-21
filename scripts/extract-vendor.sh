@@ -267,5 +267,11 @@ STORAGE_TYPE="${STORE:+${P_TYPE[$STORE]}}"
 EOF
 
 rep ""
+# Base compacta da imagem (sem o rootfs): depois disso a imagem original pode ser apagada.
+"$TOP/scripts/make-stock-base.sh" "$IMG" "$VENDOR"
+[ "$IMG" = "$WORK/stock.img" ] && rm -f "$IMG"
+
+rep ""
 rep "Pronto. Vendor em $VENDOR"
+rep "A imagem stock original não é mais necessária para compilar nem para gerar a imagem."
 rep "Confira $REPORT antes de compilar."

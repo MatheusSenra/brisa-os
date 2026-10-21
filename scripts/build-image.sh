@@ -26,10 +26,13 @@ for a in "$@"; do
 done
 
 TOP=$(cd "$(dirname "$0")/.." && pwd)
-LAYOUT=${BRISA_VENDOR:-$TOP/vendor}/layout.env
+VENDOR=${BRISA_VENDOR:-$TOP/vendor}
+LAYOUT=$VENDOR/layout.env
 [ -f "$LAYOUT" ] || die "falta $LAYOUT; rode 'make vendor STOCK=<imagem>' antes"
 # shellcheck source=/dev/null
 . "$LAYOUT"
+# normalmente vendor/stock-base.img.xz (caminho relativo ao vendor/)
+case "$STOCK_IMG" in /*) ;; *) STOCK_IMG=$VENDOR/$STOCK_IMG ;; esac
 [ -f "$STOCK_IMG" ] || die "imagem stock não encontrada: $STOCK_IMG"
 [ -f "$TAR" ] || die "rootfs não encontrado: $TAR"
 
@@ -61,7 +64,10 @@ fakeroot -- sh -c '
 
 # ---------- imagem final ----------
 log "copiando a imagem stock"
-cp --sparse=always "$STOCK_IMG" "$OUT"
+case "$STOCK_IMG" in
+*.xz) xz -dc "$STOCK_IMG" | cp --sparse=always /dev/stdin "$OUT" ;;
+*) cp --sparse=always "$STOCK_IMG" "$OUT" ;;
+esac
 log "gravando o rootfs na partição $ROOTFS_PART"
 dd if="$TMP/rootfs.ext4" of="$OUT" bs=4M oflag=seek_bytes seek=$((ROOTFS_START * 512)) \
 	conv=notrunc,sparse status=none

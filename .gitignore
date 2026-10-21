@@ -1,3 +1,4 @@
 vendor/
 ui/brisa-ui
 ui/build/
+out/

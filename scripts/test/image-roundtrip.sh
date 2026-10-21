@@ -77,6 +77,11 @@ grep -q 'input_exit_emulator_btn' "$V/retroarch/input-stock.cfg" || fail "input-
 [ -f "$V/modules/4.9.170/extra/mali_kbase.ko" ] || fail "mali_kbase.ko avulso em extra/"
 grep -q 'extra/mali_kbase.ko' "$V/modules/4.9.170/modules.dep" || fail "modules.dep com o módulo avulso"
 grep -q 'root=/dev/mmcblk0p3' "$V/info/report.txt" || fail "cmdline no relatório"
+[ -f "$V/stock-base.img.xz" ] || fail "base compacta do stock"
+[ "$STOCK_IMG" = stock-base.img.xz ] || fail "layout.env deveria apontar para a base (veio $STOCK_IMG)"
+# daqui em diante a imagem original não pode ser necessária (guarda só o início para comparar)
+head -c $((20480 * 512)) "$STOCK" > "$T/stock-head.bin"
+rm -f "$STOCK" "$STOCK.gz"
 ok "extract-vendor.sh encontrou rootfs, módulos, Mali, firmware, controles e cmdline"
 
 # ---------- montagem ----------
@@ -94,7 +99,7 @@ fi
 BRISA_WORK="$T" BRISA_VENDOR="$V" "$TOP/scripts/build-image.sh" "$TARFILE" "$T/brisa.img" --wipe-storage > "$T/build.log" ||
 	{ cat "$T/build.log"; fail "build-image.sh"; }
 
-cmp -n $((20480 * 512)) "$STOCK" "$T/brisa.img" || fail "boot/env/tabela deveriam ficar iguais"
+cmp -n $((20480 * 512)) "$T/stock-head.bin" "$T/brisa.img" || fail "boot/env/tabela deveriam ficar iguais"
 dd if="$T/brisa.img" of="$T/new-root.img" bs=512 skip=20480 count=524288 status=none
 [ "$(blkid -p -o value -s UUID "$T/new-root.img")" = 11111111-2222-3333-4444-555555555555 ] || fail "UUID preservado"
 [ "$(blkid -p -o value -s LABEL "$T/new-root.img")" = rootfs ] || fail "rótulo preservado"

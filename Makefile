@@ -6,6 +6,9 @@
 #   make config-nogpu rootfs     compila sem Mali/RetroArch (não precisa do stock)
 #   make ui-run                  abre a interface no PC
 #   make test                    testes que rodam sem o aparelho
+#   make check                   confere o rootfs compilado (GPU, bibliotecas, vendor)
+#   make clean-stock             apaga as cópias de trabalho do firmware stock
+#   make distclean               apaga tudo que o build gerou fora do projeto
 
 BR_VERSION ?= 2026.02.3
 WORK       ?= $(HOME)/brisa-work
@@ -14,6 +17,8 @@ OUT        ?= $(WORK)/output
 IMAGE      ?= $(WORK)/brisa-rg35xxh.img
 IMAGE_OPTS ?= --xz
 TOP        := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+# A imagem compactada vai para dentro do projeto, onde o Windows a enxerga.
+RELEASE    ?= $(TOP)/out
 DEFCONFIG  := brisa_rg35xxh_defconfig
 
 # O WSL coloca no PATH as pastas do Windows (com espaços) e roda como root;
@@ -52,8 +57,17 @@ $(OUT)/.config:
 rootfs: $(OUT)/.config
 	$(BR_MAKE)
 
-image: rootfs
+# Com --xz, só o .img.xz fica (em out/); a imagem crua de ~15 GB é apagada.
+# O balenaEtcher e o Rufus gravam o .img.xz direto.
+image: rootfs check
 	scripts/build-image.sh $(OUT)/images/rootfs.tar $(IMAGE) $(IMAGE_OPTS)
+	@if [ -f $(IMAGE).xz ]; then \
+		mkdir -p $(RELEASE) && mv -f $(IMAGE).xz $(RELEASE)/ && rm -f $(IMAGE) && \
+		echo "==> imagem: $(RELEASE)/$(notdir $(IMAGE)).xz"; \
+	fi
+
+check:
+	scripts/check-rootfs.sh $(OUT)
 
 menuconfig: $(OUT)/.config
 	$(BR_MAKE) menuconfig
@@ -77,4 +91,13 @@ test: ui-test
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all deps vendor config config-nogpu rootfs image menuconfig rebuild-ui ui ui-run ui-test test clean
+# O que o projeto precisa do stock já está em vendor/; o cache em $(WORK)/stock
+# (partições copiadas e árvore extraída) só acelera um novo 'make vendor'.
+clean-stock:
+	rm -rf $(WORK)/stock $(WORK)/img.*
+
+# Deixa só o clone do Buildroot e os downloads (dl/), para não baixar tudo de novo.
+distclean: clean clean-stock
+	rm -f $(IMAGE) $(IMAGE).xz
+
+.PHONY: all deps vendor config config-nogpu rootfs image check menuconfig rebuild-ui ui ui-run ui-test test clean clean-stock distclean
