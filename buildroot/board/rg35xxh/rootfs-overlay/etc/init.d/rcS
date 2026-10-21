@@ -67,6 +67,28 @@ mount_data() {
 }
 
 ROOT_DISK=$(root_disk)
+
+# Primeiro boot num cartão maior que a imagem: cria a partição BRISA (exFAT) com
+# o resto do cartão e muda para ela o que já estiver na partição da Anbernic.
+if brisa-expand --check "/dev/$ROOT_DISK"; then
+	brisa-ui --splash "Preparando o cartão..."
+	OLD=$(data_part "$ROOT_DISK")
+	NEW=$(brisa-expand "/dev/$ROOT_DISK" 2>> /tmp/expand.log)
+	if [ -n "$NEW" ] && [ -n "$OLD" ]; then
+		mkdir -p /mnt/old
+		if mount_data "$OLD" /mnt/old && mount_data "${NEW#/dev/}" /mnt/sd1; then
+			for d in Roms Brisa; do
+				[ -d "/mnt/old/$d" ] || continue
+				# apaga o original só se a cópia terminou
+				cp -r "/mnt/old/$d" /mnt/sd1/ && rm -rf "/mnt/old/$d"
+			done
+			sync
+		fi
+		umount /mnt/sd1 2>/dev/null
+		umount /mnt/old 2>/dev/null
+	fi
+fi
+
 P1=$(data_part "$ROOT_DISK")
 if [ -n "$P1" ] && mount_data "$P1" /mnt/sd1; then
 	BRISA_DATA=/mnt/sd1/Brisa

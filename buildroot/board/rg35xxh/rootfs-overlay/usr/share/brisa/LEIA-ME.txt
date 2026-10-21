@@ -11,7 +11,8 @@ Botões:
   START na lista        Ajustes
   SELECT na lista       atualizar a lista de jogos
   MENU + cima/baixo     brilho (também durante o jogo)
-  START + SELECT        menu do RetroArch (no jogo)
+  MENU + START          sai do jogo
+  segurar START (2 s)   menu do RetroArch (no jogo)
   POWER                 menu de energia; no jogo, sai salvando
 
 Rede (Ajustes > SSH e SFTP): usuário root, senha "brisa".

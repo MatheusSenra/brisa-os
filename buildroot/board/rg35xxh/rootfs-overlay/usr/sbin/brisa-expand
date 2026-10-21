@@ -1,0 +1,65 @@
+#!/bin/sh
+# brisa-expand [--check] <disco>
+#
+# Cria, no espaço livre do fim do cartão, uma partição exFAT "BRISA" para os
+# jogos. A imagem tem ~15 GB; o resto do cartão fica sem partição até aqui.
+# Não mexe nas partições existentes: só move o cabeçalho GPT reserva para o
+# fim do cartão e acrescenta uma entrada na tabela.
+#
+#   <disco>   /dev/mmcblk0 no aparelho, ou um arquivo de imagem (testes; aí
+#             só a tabela de partições é alterada, sem formatar)
+#   --check   só diz se há o que fazer (0 = expandiria), sem alterar nada
+#
+# Saída: 0 = criou (imprime o dispositivo novo); 1 = nada a fazer; 2 = erro.
+set -u
+
+CHECK=0
+[ "${1:-}" = --check ] && { CHECK=1; shift; }
+DEV=${1:?uso: brisa-expand [--check] <disco>}
+MIN_SECTORS=$((1024 * 1024 * 2))                  # só vale a pena com 1 GiB livre
+TYPE_DATA=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7   # "dados básicos": o Windows monta
+
+dump=$(sfdisk -d "$DEV" 2>/dev/null) || { echo "brisa-expand: não li a tabela de $DEV" >&2; exit 2; }
+echo "$dump" | grep -q '^label: gpt' || exit 1
+echo "$dump" | grep -q 'name="BRISA"' && exit 1
+
+total=$(sfdisk -l "$DEV" 2>/dev/null | sed -n 's/^Disk .*, \([0-9]*\) sectors$/\1/p' | head -n1)
+last=$(echo "$dump" | sed -n 's/.*start= *\([0-9]*\), size= *\([0-9]*\).*/\1 \2/p' |
+	awk '{ e = $1 + $2; if (e > m) m = e } END { print m + 0 }')
+num=$(echo "$dump" | sed -n 's/^.*[^0-9]\([0-9][0-9]*\) : start=.*/\1/p' |
+	awk '{ if ($1 > m) m = $1 } END { print m + 1 }')
+slots=$(echo "$dump" | sed -n 's/^table-length: *\([0-9]*\)/\1/p')
+[ -n "$total" ] && [ "$last" -gt 0 ] || { echo "brisa-expand: tamanho do disco desconhecido" >&2; exit 2; }
+
+# a tabela da Anbernic só tem 8 entradas; a nossa é a última possível
+if [ -n "$slots" ] && [ "$num" -gt "$slots" ]; then
+	echo "brisa-expand: tabela cheia ($slots entradas)" >&2
+	exit 1
+fi
+
+start=$(( (last + 2047) / 2048 * 2048 ))          # alinhado em 1 MiB
+free=$(( total - 34 - start ))                     # 33 setores do GPT reserva no fim
+[ "$free" -ge "$MIN_SECTORS" ] || exit 1
+[ "$CHECK" = 1 ] && exit 0
+
+echo "brisa-expand: criando p$num em $start, $((free / 2048)) MiB" >&2
+# o cabeçalho reserva ficou no fim da imagem gravada (~15 GB); vai para o fim do cartão
+sfdisk -q --no-reread --no-tell-kernel --relocate gpt-bak-std "$DEV" || exit 2
+echo "start=$start, type=$TYPE_DATA, name=\"BRISA\"" |
+	sfdisk -q --append --no-reread --no-tell-kernel "$DEV" || exit 2
+
+if [ -b "$DEV" ]; then
+	# o disco está em uso (rootfs): avisa o kernel só da partição nova
+	partx --add --nr "$num" "$DEV" || exit 2
+	case "$DEV" in *[0-9]) part=${DEV}p$num ;; *) part=$DEV$num ;; esac
+	i=0
+	while [ ! -b "$part" ] && [ $i -lt 50 ]; do
+		usleep 100000
+		i=$((i + 1))
+	done
+	mkfs.exfat -L BRISA "$part" > /dev/null || exit 2
+	echo "$part"
+else
+	echo "p$num"
+fi
+exit 0

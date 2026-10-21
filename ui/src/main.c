@@ -949,14 +949,37 @@ static font_t *load_font(const char *file, float px)
     return NULL;
 }
 
-int main(void)
+/* brisa-ui --splash "texto": desenha uma tela de aviso e sai, deixando-a no
+ * display (usado pelo rcS em tarefas longas, como preparar o cartão). */
+static int splash(const char *msg)
+{
+    gfx_vgrad(&A.c, 0, 0, A.c.w, A.c.h, COL_BG_TOP, COL_BG_BOT);
+    const char *title = "Brisa OS";
+    int d = S(14), gap = S(14);
+    int tw = font_width(A.f_big, title);
+    int x = (A.c.w - (d + gap + tw)) / 2, y = A.c.h / 2 - S(10);
+    gfx_rrect(&A.c, x, y - (font_ascent(A.f_big) * 72 / 100 + d) / 2, d, d, d / 2, COL_ACCENT);
+    font_draw(&A.c, A.f_big, x + d + gap, y, title, COL_TEXT);
+    draw_center(A.f_row, y + S(44), msg, COL_DIM);
+    draw_center(A.f_small, y + S(74), "Isso acontece só uma vez.", COL_DIM);
+    plat_present(&A.c);
+    const char *shot = getenv("BRISA_SHOT");
+    if (shot)
+        gfx_save_bmp(&A.c, shot);
+    /* sem plat_shutdown: a tela fica como está até a interface abrir */
+    return 0;
+}
+
+int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
+    const char *splash_msg = argc > 2 && strcmp(argv[1], "--splash") == 0 ? argv[2] : NULL;
     A.etc = env_or("BRISA_ETC", "/etc/brisa");
     A.data = env_or("BRISA_DATA", "/mnt/sd1/Brisa");
     A.roms = env_or("BRISA_ROMS", "/mnt/sd1/Roms");
     A.bin = env_or("BRISA_BIN", "/usr/bin");
-    mkdir(A.data, 0755);
+    if (!splash_msg)
+        mkdir(A.data, 0755);
     snprintf(A.path_settings, sizeof A.path_settings, "%s/settings.conf", A.data);
     snprintf(A.path_recent, sizeof A.path_recent, "%s/recent.txt", A.data);
 
@@ -980,6 +1003,8 @@ int main(void)
         plat_shutdown();
         return 1;
     }
+    if (splash_msg)
+        return splash(splash_msg);
 
     bright_set(settings_get_int("brightness", 7));
 

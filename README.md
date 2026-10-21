@@ -98,6 +98,8 @@ O resultado fica em **`out/brisa-rg35xxh.img.xz`** (~2,5 GB).
 
 Grave o `.img.xz` direto no cartão (não precisa descompactar) com o [balenaEtcher](https://etcher.balena.io/) ou o [Rufus](https://rufus.ie/), coloque no slot **TF1** e ligue.
 
+No **primeiro boot**, se o cartão for maior que a imagem (~15 GB), o Brisa cria com o espaço que sobra uma partição **exFAT chamada BRISA** e move para ela os jogos que você já tiver colocado. A tela mostra "Preparando o cartão…" enquanto isso acontece, uma vez só. Depois, no Windows, é na unidade **BRISA** que ficam os jogos (`Roms/`) e os saves (`Brisa/`).
+
 > [!TIP]
 > Use `make IMAGE_OPTS="--xz --wipe-storage"` para também formatar a partição de dados do cartão como FAT32.
 
@@ -161,7 +163,8 @@ Brisa/wifi.conf.exemplo                      ← copie como wifi.conf
 | **START** (na lista) | Ajustes |
 | **SELECT** (na lista) | Atualiza a lista de jogos |
 | **MENU** + ↑/↓ | Brilho (funciona também no jogo) |
-| **START** + **SELECT** (no jogo) | Menu do RetroArch |
+| **MENU** + **START** (no jogo) | Sai do jogo (padrão da Anbernic) |
+| Segurar **START** 2 s (no jogo) | Menu do RetroArch (padrão da Anbernic) |
 | **POWER** (toque) | Menu de energia; no jogo, sai salvando |
 | **POWER** (2 s) | Desliga com segurança. Não segure mais: o hardware corta a energia e pode corromper o cartão |
 | **Volume** | Funciona na interface e no jogo |
