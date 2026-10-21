@@ -39,12 +39,15 @@ STOCK="$T/stock.img"
 truncate -s 360M "$STOCK"
 sfdisk -q "$STOCK" <<EOF
 label: gpt
-start=2048, size=16384, name="boot", type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
+start=2048, size=16384, name="boot-resource", type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 start=18432, size=2048, name="env"
 start=20480, size=524288, name="rootfs"
 start=544768, size=174080, name="ROMS", type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 EOF
 mkfs.vfat -C "$T/boot.img" 8192 >/dev/null
+# logo "da Anbernic", que o build-image deve trocar pelo do Brisa
+head -c 921654 /dev/urandom > "$T/logo-stock.bmp"
+MTOOLS_SKIP_CHECK=1 mcopy -i "$T/boot.img" "$T/logo-stock.bmp" ::/bootlogo.bmp
 dd if="$T/boot.img" of="$STOCK" bs=512 seek=2048 conv=notrunc status=none
 printf 'bootargs=console=ttyS0,115200 root=/dev/mmcblk0p3 rootwait init=/init\0' > "$T/env.img"
 dd if="$T/env.img" of="$STOCK" bs=512 seek=18432 conv=notrunc status=none
@@ -99,7 +102,11 @@ fi
 BRISA_WORK="$T" BRISA_VENDOR="$V" "$TOP/scripts/build-image.sh" "$TARFILE" "$T/brisa.img" --wipe-storage > "$T/build.log" ||
 	{ cat "$T/build.log"; fail "build-image.sh"; }
 
-cmp -n $((20480 * 512)) "$T/stock-head.bin" "$T/brisa.img" || fail "boot/env/tabela deveriam ficar iguais"
+cmp -n $((2048 * 512)) "$T/stock-head.bin" "$T/brisa.img" || fail "tabela de partições deveria ficar igual"
+cmp -n $((2048 * 512)) -i $((18432 * 512)) "$T/stock-head.bin" "$T/brisa.img" || fail "env deveria ficar igual"
+MTOOLS_SKIP_CHECK=1 mcopy -i "$T/brisa.img@@$((2048 * 512))" ::/bootlogo.bmp "$T/logo-novo.bmp"
+cmp -s "$T/logo-novo.bmp" "$TOP/buildroot/board/rg35xxh/bootlogo.bmp" || fail "logo de boot do Brisa"
+ok "logo de boot trocado pelo do Brisa"
 dd if="$T/brisa.img" of="$T/new-root.img" bs=512 skip=20480 count=524288 status=none
 [ "$(blkid -p -o value -s UUID "$T/new-root.img")" = 11111111-2222-3333-4444-555555555555 ] || fail "UUID preservado"
 [ "$(blkid -p -o value -s LABEL "$T/new-root.img")" = rootfs ] || fail "rótulo preservado"

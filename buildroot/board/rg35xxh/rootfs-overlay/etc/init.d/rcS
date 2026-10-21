@@ -107,9 +107,14 @@ export BRISA_DATA BRISA_ROMS
 mkdir -p "$BRISA_ROMS" "$BRISA_DATA"/saves "$BRISA_DATA"/states "$BRISA_DATA"/bios \
 	"$BRISA_DATA"/screenshots "$BRISA_DATA"/retroarch
 if [ ! -f "$BRISA_DATA/.criado" ]; then
-	# uma pasta por sistema, com o primeiro nome listado em systems.conf
-	grep -v '^#' "$BRISA_ETC/systems.conf" | cut -d'|' -f3 | cut -d, -f1 | while read -r dir; do
-		[ -n "$dir" ] && mkdir -p "$BRISA_ROMS/$dir"
+	# uma pasta por sistema, com o primeiro nome listado em systems.conf,
+	# só se nenhum dos nomes aceitos já existir (o stock já traz FC, SFC, SMS...)
+	grep -v '^#' "$BRISA_ETC/systems.conf" | cut -d'|' -f3 | while read -r dirs; do
+		found=
+		for dir in $(echo "$dirs" | tr ',' ' '); do
+			[ -d "$BRISA_ROMS/$dir" ] && found=1
+		done
+		[ -z "$found" ] && [ -n "$dirs" ] && mkdir -p "$BRISA_ROMS/${dirs%%,*}"
 	done
 	cp /usr/share/brisa/wifi.conf.exemplo /usr/share/brisa/LEIA-ME.txt "$BRISA_DATA"/ 2>/dev/null
 	touch "$BRISA_DATA/.criado"

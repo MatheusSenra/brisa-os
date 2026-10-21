@@ -1,3 +1,7 @@
 # Applets extras usados pelos scripts do Brisa
 # acerta o relógio quando o Wi-Fi conecta (brisa-net)
 CONFIG_NTPD=y
+# o rcS acha a partição de jogos pelo TYPE="vfat"/"exfat" do blkid;
+# sem isto o blkid não imprime o tipo e o Brisa cai em /data/Roms
+CONFIG_FEATURE_BLKID_TYPE=y
+CONFIG_FEATURE_MOUNT_LABEL=y

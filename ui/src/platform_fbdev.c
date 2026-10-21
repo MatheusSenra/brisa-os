@@ -275,8 +275,12 @@ int plat_init(canvas_t *c)
 {
     map_defaults();
     const char *etc = getenv("BRISA_ETC");
+    const char *data = getenv("BRISA_DATA");
     char path[512];
     snprintf(path, sizeof path, "%s/input.conf", etc ? etc : "/etc/brisa");
+    map_load(path);
+    /* ajuste do usuário no cartão de jogos (editável no PC), vale por cima */
+    snprintf(path, sizeof path, "%s/input.conf", data ? data : "/mnt/sd1/Brisa");
     map_load(path);
 
     if (fb_open() < 0)

@@ -72,6 +72,15 @@ log "gravando o rootfs na partição $ROOTFS_PART"
 dd if="$TMP/rootfs.ext4" of="$OUT" bs=4M oflag=seek_bytes seek=$((ROOTFS_START * 512)) \
 	conv=notrunc,sparse status=none
 
+# ---------- logo de boot ----------
+# O bootloader da Anbernic mostra bootlogo.bmp da partição boot-resource (FAT).
+LOGO=${BRISA_BOOTLOGO:-$TOP/buildroot/board/rg35xxh/bootlogo.bmp}
+BOOTRES=$(sfdisk -d "$OUT" | sed -n 's/.*start= *\([0-9]*\),.*name="boot-resource".*/\1/p')
+if [ -f "$LOGO" ] && [ -n "$BOOTRES" ]; then
+	log "trocando o logo de boot"
+	MTOOLS_SKIP_CHECK=1 mcopy -o -i "$OUT@@$((BOOTRES * 512))" "$LOGO" ::/bootlogo.bmp
+fi
+
 if [ "$WIPE" = 1 ]; then
 	[ -n "${STORAGE_PART:-}" ] || die "a imagem stock não tem partição de dados"
 	log "formatando a partição de dados $STORAGE_PART (FAT32, BRISA)"
