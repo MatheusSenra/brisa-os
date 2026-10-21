@@ -42,14 +42,20 @@
 
 O Brisa está em **alpha**. Já funciona e foi testado:
 
-- ✅ Build completo do sistema: interface, RetroArch 1.22 com GPU Mali (fbdev) e os 6 cores
+Testado no **RG35XX H** real:
+
+- ✅ Boot com o logo do Brisa; rootfs montado em ~1,8 s
+- ✅ Interface, controles, cartão de jogos (FAT32) e pastas no padrão da Anbernic
+- ✅ Jogos de Game Boy, Game Boy Color e SNES com imagem (GPU Mali-G31) e som
+- ✅ Saída do jogo pelo POWER e desligamento limpo segurando POWER por 2 s
+
+Também:
+
+- ✅ Build completo: interface, RetroArch 1.22 com GPU Mali (fbdev) e os 6 cores
 - ✅ Extração do firmware stock **V1.2.4** da Anbernic: kernel 4.9.170, driver da GPU, Wi-Fi 8821cs e 391 perfis de controle
-- ✅ Imagem final gerada e conferida: só o rootfs muda; bootloader, kernel e partições ficam idênticos aos do stock
 - ✅ Interface no PC, com testes automáticos que geram capturas de tela
 
-Falta validar no aparelho:
-
-- ⏳ Primeiro boot no RG35XX H real
+Ainda não testado no aparelho: Wi-Fi/SSH, segundo cartão (TF2), Mega Drive e PlayStation.
 
 ## 🚀 Começando
 
@@ -156,7 +162,8 @@ Brisa/wifi.conf.exemplo                      ← copie como wifi.conf
 | **SELECT** (na lista) | Atualiza a lista de jogos |
 | **MENU** + ↑/↓ | Brilho (funciona também no jogo) |
 | **START** + **SELECT** (no jogo) | Menu do RetroArch |
-| **POWER** | Menu de energia; no jogo, sai salvando |
+| **POWER** (toque) | Menu de energia; no jogo, sai salvando |
+| **POWER** (2 s) | Desliga com segurança. Não segure mais: o hardware corta a energia e pode corromper o cartão |
 | **Volume** | Funciona na interface e no jogo |
 
 ### Rede
@@ -242,7 +249,8 @@ scp ~/brisa-work/output/target/usr/bin/brisa-ui root@<ip-do-aparelho>:/usr/bin/
 - [x] Interface com sistemas, jogos, recentes e ajustes
 - [x] Wi-Fi, SSH e SFTP
 - [x] Governor da CPU por sistema, run-ahead e retomada automática
-- [ ] Primeiro boot validado no RG35XX H
+- [x] Primeiro boot validado no RG35XX H
+- [ ] Usar o cartão inteiro no primeiro boot (hoje a partição de jogos tem 2 GB)
 - [ ] Teclado na tela para configurar o Wi-Fi
 - [ ] Suspender e retomar pelo botão POWER
 - [ ] Capas dos jogos e favoritos
